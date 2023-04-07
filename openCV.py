@@ -18,6 +18,8 @@
 import cv2 as cv
 import numpy as np
 import math
+import mediapipe as mp
+
 
 
 #All openCV functions are cited from the openCV API: https://opencv.org/
@@ -30,25 +32,17 @@ def mouseValue(event,x,y,flags,param):
         # print("value: ",  value)
         # print("Coordinates of pixel: X: ",x,"Y: ",y)
 
-def warp(img, img_gray, template):
+def mouse_sensing():
+    cv.namedWindow('mouseValue')
+    cv.setMouseCallback('mouseValue',mouseValue)
     
-    # cv.imshow('gray', img_gray)
-    # cv.waitKey()
-
-    template = cv.cvtColor(template,cv.COLOR_BGR2GRAY)
-
-    w, h = template.shape[::-1] 
-  
-    # Apply template matching
-    res = cv.matchTemplate(img_gray, template,
-                           cv.TM_CCOEFF_NORMED)
-  
-    threshold = 0.3
-    loc = np.where( res >= threshold)
-    for pt in zip(*loc[::-1]):
-        cv.rectangle(img, pt, (pt[0] + w, pt[1] + h), (0,0,255), 2)
-  
-    return img
+    #Do until esc pressed
+    while(1):
+        cv.imshow('mouseValue',output)
+        if cv.waitKey(20) & 0xFF == 27:
+            break
+    #if esc pressed, finish.
+    cv.destroyAllWindows()
 
 def filter(img):
 
@@ -151,18 +145,6 @@ def segment(thresh, gray, img):
 
     return output, totalSections, sector
 
-def mouse_sensing():
-    cv.namedWindow('mouseValue')
-    cv.setMouseCallback('mouseValue',mouseValue)
-    
-    #Do until esc pressed
-    while(1):
-        cv.imshow('mouseValue',output)
-        if cv.waitKey(20) & 0xFF == 27:
-            break
-    #if esc pressed, finish.
-    cv.destroyAllWindows()
-
 def get_src_pts(corners, h, w):
 
     # get dist from each edge to each of the 4 points so you know how to order them
@@ -218,11 +200,8 @@ def warping(img):
     cv.imshow('thresh1', thresh)
     cv.waitKey()
 
-    # cnts = cv.findContours(thresh, cv.RETR_TREE  , cv.CHAIN_APPROX_SIMPLE)[0]
     contours,hierarchy = cv.findContours(thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
-    # x,y,w,h = cv.boundingRect(cnt)
-    # cv.rectangle(img,(x,y),(x+w,y+h),(0,255,0),2)
 
     src = [[]]
     for cnt in contours:
@@ -235,15 +214,7 @@ def warping(img):
 
     src.pop(0)
     src = np.float32(src)
-
-    # cnt = sorted(cnts, key=cv.contourArea, reverse=True)[0]
-
-    # print(cnts)
-
-    # epsilon = 0.02 * cv.arcLength(cnt, True)
-    # approx_corners = cv.approxPolyDP(cnt, epsilon, True)
-    # approx_corners = approx_corners[:4]
-    # approx_corners = sorted(np.concatenate(approx_corners).tolist())
+   
     for cnt in contours:
         cv.drawContours(img, cnt, -1, (0, 255, 0), 3) 
     # cv.imshow('contours', img)
@@ -264,8 +235,6 @@ def warping(img):
 
     matrix = cv.getPerspectiveTransform(src,dst)
 
-    # H, extra = cv.findHomography(srcPoints=src, dstPoints=dst, method=cv.RANSAC, ransacReprojThreshold=3.0)
-
     warp = cv.warpPerspective(img, matrix, (w,h), flags=cv.INTER_LINEAR)
 
     cv.imshow('warp', warp)
@@ -273,6 +242,20 @@ def warping(img):
     cv.destroyAllWindows()
 
     return warp
+
+def re_size(img):
+    #resize image
+    r = img.shape[0]
+    c = img.shape[1]
+    # print(r,c)
+
+    factor = 1/((r*c)/500000)**(1/2)
+    img = cv.resize(img, None, fx = factor, fy = factor, interpolation= cv.INTER_AREA)
+    # cv.imshow('resize', warp)
+    # r = img.shape[0]
+    # c = img.shape[1]
+    # print(r,c)
+    return img
 
 # for n in range(1, 11):
     
@@ -283,18 +266,8 @@ img = cv.imread('test_images/test%d.jpg' % n)
 # img = cv.imread('test_images/test.png')
 # img = cv.imread('capture%d.png' % n)
 
-#resize image
-r = img.shape[0]
-c = img.shape[1]
-# print(r,c)
 
-factor = 1/((r*c)/500000)**(1/2)
-img = cv.resize(img, None, fx = factor, fy = factor, interpolation= cv.INTER_AREA)
-# cv.imshow('resize', warp)
-# r = img.shape[0]
-# c = img.shape[1]
-# print(r,c)
-
+img = re_size(img)
 cv.imshow('img', img)
 cv.waitKey()
 
@@ -302,18 +275,7 @@ cv.waitKey()
 warp = warping(img)
 # warp = img.copy()
 
-
-#resize image
-r = warp.shape[0]
-c = warp.shape[1]
-# print(r,c)
-
-factor = 1/((r*c)/500000)**(1/2)
-warp = cv.resize(warp, None, fx = factor, fy = factor, interpolation= cv.INTER_AREA)
-# cv.imshow('resize', warp)
-r = warp.shape[0]
-c = warp.shape[1]
-# print(r,c)
+warp = re_size(warp)
 
 #crop the image 
 crop = 20
@@ -323,7 +285,7 @@ warp = warp[crop:-crop, crop:-crop]
 #border the image
 bor = 20
 col = 150
-warp= cv.copyMakeBorder(warp,bor,bor,bor,bor,cv.BORDER_CONSTANT,value=[col,col,col])
+warp = cv.copyMakeBorder(warp,bor,bor,bor,bor,cv.BORDER_CONSTANT,value=[col,col,col])
 cv.imshow('border', warp)
 cv.waitKey()
 cv.destroyAllWindows()
