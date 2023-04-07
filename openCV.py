@@ -79,7 +79,7 @@ def filter(img):
     cv.imshow('grad', grad)
     cv.waitKey()
 
-    thresh = cv.threshold(grad, 50, 230, cv.THRESH_BINARY_INV)[1]
+    thresh = cv.threshold(grad, 15, 255, cv.THRESH_BINARY_INV)[1]
     # thresh = cv.bitwise_not(thresh)
     
 
@@ -191,11 +191,11 @@ def get_dst_pts(w, h):
 
 def warping(img):
     boundaries = [
-        ([0, 0, 42], [40, 40, 255]), #red
+        ([60, 60, 150], [120, 120, 205]), #red
         # ([0, 0, 45], [60, 60, 230]), #red
         ]
     for (lower, upper) in boundaries:
-        # create NumPy arrays from the boundaries
+        # create NumPy arrays from the boundaries 
         lower = np.array(lower, dtype = "uint8")
         upper = np.array(upper, dtype = "uint8")
         # find the colors within the specified boundaries and apply
@@ -276,14 +276,27 @@ def warping(img):
 
 # for n in range(1, 11):
     
-n = 8
+n = 11
 
 #readin image
-img = cv.imread('test_images/test%d.png' % n)
+img = cv.imread('test_images/test%d.jpg' % n)
 # img = cv.imread('test_images/test.png')
 # img = cv.imread('capture%d.png' % n)
-# cv.imshow('img', img)
-# cv.waitKey()
+
+#resize image
+r = img.shape[0]
+c = img.shape[1]
+# print(r,c)
+
+factor = 1/((r*c)/500000)**(1/2)
+img = cv.resize(img, None, fx = factor, fy = factor, interpolation= cv.INTER_AREA)
+# cv.imshow('resize', warp)
+# r = img.shape[0]
+# c = img.shape[1]
+# print(r,c)
+
+cv.imshow('img', img)
+cv.waitKey()
 
 # warping image
 warp = warping(img)
@@ -309,7 +322,7 @@ warp = warp[crop:-crop, crop:-crop]
 
 #border the image
 bor = 20
-col = 120
+col = 150
 warp= cv.copyMakeBorder(warp,bor,bor,bor,bor,cv.BORDER_CONSTANT,value=[col,col,col])
 cv.imshow('border', warp)
 cv.waitKey()
