@@ -15,8 +15,8 @@
 # cap.release()
 # cv.destroyAllWindows()
 
-# import cv2 as cv
-import cv2
+import cv2 as cv
+# import cv2
 import numpy as np
 import math
 import mediapipe as mp
@@ -134,6 +134,7 @@ def segment(thresh, gray, img):
         value = 255 * (j+1) // totalSections
         sector[j+1] = value
         componentMask = (label_ids == i).astype("uint8") * value
+       
 
         # Apply the mask using the bitwise operator
         component = cv.bitwise_or(component,componentMask)
@@ -259,113 +260,117 @@ def re_size(img):
     # print(r,c)
     return img
 
+def hands():
+    cap = cv2.VideoCapture(0)
+
+    mp_Hands = mp.solutions.hands
+    hands = mp_Hands.Hands()
+    # mpDraw = mp.solutions.drawing_utils
+    # mp_drawing_styles = mp.solutions.drawing_styles
+
+    # finger_Coord = [(8, 6), (12, 10), (16, 14), (20, 18)]
+    # thumb_Coord = (4,2)
+
+
+    prev = time.time()
+    while True:
+        LhandList = []
+        RhandList = []
+        
+        success, image = cap.read()
+        RGB_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        results = hands.process(RGB_image)
+        multiLandMarks = results.multi_hand_landmarks
+        if multiLandMarks:
+            for handLms in multiLandMarks:
+                handIndex = results.multi_hand_landmarks.index(handLms)
+                handLabel = results.multi_handedness[handIndex].classification[0].label
+                # mpDraw.draw_landmarks(image, handLms, mp_Hands.HAND_CONNECTIONS, mp_drawing_styles.get_default_hand_landmarks_style(), mp_drawing_styles.get_default_hand_connections_style())
+                for idx, lm in enumerate(handLms.landmark):
+                    if idx % 4 == 0 and idx != 0:
+                        h, w, c = image.shape
+                        cx, cy = int(lm.x * w), int(lm.y * h)
+                        cv2.circle(image, (cx, cy), 5, (255, 255, 0), cv2.FILLED)
+                        if handLabel == "Left":
+                            RhandList.append((cx, cy))
+                        elif handLabel == "Right":
+                            LhandList.append((cx, cy))
+            # for point in handList:
+        cv2.imshow("viewing fingers", image)
+
+        cur = time.time()
+        if cur-prev >= 1:
+            prev = cur
+            if len(LhandList) > 0:
+                print("thumb left: ", LhandList[0])
+                print("index left: ", LhandList[1])
+                print("middle left: ", LhandList[2])
+                print("ring left: ", LhandList[3])
+                print("pinky left: ", LhandList[4])
+                print("-------------------------")
+            if len(RhandList) > 0:
+                print("thumb right: ", RhandList[0])
+                print("index right: ", RhandList[1])
+                print("middle right: ", RhandList[2])
+                print("ring right: ", RhandList[3])
+                print("pinky right: ", RhandList[4])
+                print("-------------------------")
+            if len(LhandList) > 0 or len(RhandList) > 0:
+                print(" ")
+                print("**************************")
+                print(" ")
+
+        key = cv2.waitKey(1)
+        if key == 27:  # click esc key to exit
+            break
+    cap.release()
+    cv2.destroyAllWindows()
+
 # for n in range(1, 11):
     
-n = 14
+n = 13
 
 #readin image
-# img = cv.imread('test_images/test%d.jpg' % n)
+img = cv.imread('test_images/test%d.jpg' % n)
 # img = cv.imread('test_images/test.png')
 # img = cv.imread('capture%d.png' % n)
 
-cap = cv2.VideoCapture(0)
+img = re_size(img)
+cv.imshow('img', img)
+cv.waitKey()
 
-mp_Hands = mp.solutions.hands
-hands = mp_Hands.Hands()
-# mpDraw = mp.solutions.drawing_utils
-# mp_drawing_styles = mp.solutions.drawing_styles
+# warping image
+warp = warping(img)
+# warp = img.copy()
 
-# finger_Coord = [(8, 6), (12, 10), (16, 14), (20, 18)]
-# thumb_Coord = (4,2)
+warp = re_size(warp)
 
+#crop the image 
+crop = 20
+warp = warp[crop:-crop, crop:-crop]
+# cv.imshow('crop', warp)
 
-prev = time.time()
-while True:
-    LhandList = []
-    RhandList = []
-    
-    success, image = cap.read()
-    RGB_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    results = hands.process(RGB_image)
-    multiLandMarks = results.multi_hand_landmarks
-    if multiLandMarks:
-        for handLms in multiLandMarks:
-            handIndex = results.multi_hand_landmarks.index(handLms)
-            handLabel = results.multi_handedness[handIndex].classification[0].label
-            # mpDraw.draw_landmarks(image, handLms, mp_Hands.HAND_CONNECTIONS, mp_drawing_styles.get_default_hand_landmarks_style(), mp_drawing_styles.get_default_hand_connections_style())
-            for idx, lm in enumerate(handLms.landmark):
-                if idx % 4 == 0 and idx != 0:
-                    h, w, c = image.shape
-                    cx, cy = int(lm.x * w), int(lm.y * h)
-                    cv2.circle(image, (cx, cy), 5, (255, 255, 0), cv2.FILLED)
-                    if handLabel == "Left":
-                        RhandList.append((cx, cy))
-                    elif handLabel == "Right":
-                        LhandList.append((cx, cy))
-        # for point in handList:
-    cv2.imshow("viewing fingers", image)
+#border the image
+bor = 20
+col = 150
+warp = cv.copyMakeBorder(warp,bor,bor,bor,bor,cv.BORDER_CONSTANT,value=[col,col,col])
+cv.imshow('border', warp)
+cv.waitKey()
+cv.destroyAllWindows()
 
-    cur = time.time()
-    if cur-prev >= 1:
-        prev = cur
-        if len(LhandList) > 0:
-            print("thumb left: ", LhandList[0])
-            print("index left: ", LhandList[1])
-            print("middle left: ", LhandList[2])
-            print("ring left: ", LhandList[3])
-            print("pinky left: ", LhandList[4])
-            print("-------------------------")
-        if len(RhandList) > 0:
-            print("thumb right: ", RhandList[0])
-            print("index right: ", RhandList[1])
-            print("middle right: ", RhandList[2])
-            print("ring right: ", RhandList[3])
-            print("pinky right: ", RhandList[4])
-            print("-------------------------")
-        if len(LhandList) > 0 or len(RhandList) > 0:
-            print(" ")
-            print("**************************")
-            print(" ")
+# threshold
+thresh, gray = filter(warp)
+cv.imshow('thresh', thresh)
+cv.waitKey()
+cv.destroyAllWindows()
 
-    key = cv2.waitKey(1)
-    if key == 27:  # click esc key to exit
-        break
-cap.release()
-cv2.destroyAllWindows()
-
-# img = re_size(img)
-# cv.imshow('img', img)
-# cv.waitKey()
-
-# # warping image
-# warp = warping(img)
-# # warp = img.copy()
-
-# warp = re_size(warp)
-
-# #crop the image 
-# crop = 20
-# warp = warp[crop:-crop, crop:-crop]
-# # cv.imshow('crop', warp)
-
-# #border the image
-# bor = 20
-# col = 150
-# warp = cv.copyMakeBorder(warp,bor,bor,bor,bor,cv.BORDER_CONSTANT,value=[col,col,col])
-# cv.imshow('border', warp)
-# cv.waitKey()
-# cv.destroyAllWindows()
-
-# # threshold
-# thresh, gray = filter(warp)
-# cv.imshow('thresh', thresh)
-# cv.waitKey()
-# cv.destroyAllWindows()
-
-# #segmentation
-# output, totalSections, sector = segment(thresh, gray, warp)
-# cv.waitKey()
-# cv.destroyAllWindows()
+#segmentation
+output, totalSections, sector = segment(thresh, gray, warp)
+cv.waitKey()
+cv.destroyAllWindows()
 
 # #Output sector with mouse cursor
 # mouse_sensing()
+
+#detect hands
+hands()
