@@ -16,7 +16,6 @@
 # cv.destroyAllWindows()
 
 import cv2 as cv
-# import cv2
 import numpy as np
 import math
 import mediapipe as mp
@@ -25,26 +24,6 @@ import time
 
 
 #All openCV functions are cited from the openCV API: https://opencv.org/
-
-def mouseValue(event,x,y,flags,param):
-    # if event == cv.EVENT_LBUTTONDOWN: #checks mouse left button down condition
-        value = output[y,x]
-        s = sector.index(value)
-        print("sector: ", s)
-        # print("value: ",  value)
-        # print("Coordinates of pixel: X: ",x,"Y: ",y)
-
-def mouse_sensing():
-    cv.namedWindow('mouseValue')
-    cv.setMouseCallback('mouseValue',mouseValue)
-    
-    #Do until esc pressed
-    while(1):
-        cv.imshow('mouseValue',output)
-        if cv.waitKey(20) & 0xFF == 27:
-            break
-    #if esc pressed, finish.
-    cv.destroyAllWindows()
 
 def filter(img):
 
@@ -72,8 +51,8 @@ def filter(img):
     
     
     grad = cv.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0)
-    cv.imshow('grad', grad)
-    cv.waitKey()
+    # cv.imshow('grad', grad)
+    # cv.waitKey()
 
     thresh = cv.threshold(grad, 15, 255, cv.THRESH_BINARY_INV)[1]
     # thresh = cv.bitwise_not(thresh)
@@ -141,10 +120,10 @@ def segment(thresh, gray, img):
         output = cv.bitwise_or(output, componentMask)
         
         # Show the final images
-        cv.imshow("Image", new_img)
-        cv.imshow("Individual Component", component)
-        cv.imshow("Filtered Components", output)
-        cv.waitKey()
+        # cv.imshow("Image", new_img)
+        # cv.imshow("Individual Component", component)
+        # cv.imshow("Filtered Components", output)
+        # cv.waitKey()
 
     return output, totalSections, sector
 
@@ -200,8 +179,9 @@ def warping(img):
     # cv.imshow('blur', blur)
     thresh = cv.threshold(blur, 250, 255, cv.THRESH_OTSU)[1]
     # thresh = cv.bitwise_not(thresh)
-    cv.imshow('thresh1', thresh)
-    cv.waitKey()
+    # cv.imshow('thresh1', thresh)
+    # cv.waitKey()
+    # cv.destroyAllWindows()
 
     contours,hierarchy = cv.findContours(thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
@@ -229,22 +209,18 @@ def warping(img):
     # print(src)
     # w = int(max(src[:,0]) - min(src[:,0]))
     # h = int(max(src[:,1]) - min(src[:,1]))
-    h = 245
-    w = 950
+    h = 359
+    w = 1392
     # print(h,w)
 
     dst = np.float32([[0,0],[w,0],[0,h],[w,h]])
     # print(dst)
 
-    matrix = cv.getPerspectiveTransform(src,dst)
+    H, _ = cv.findHomography(src, dst)
 
-    warp = cv.warpPerspective(img, matrix, (w,h), flags=cv.INTER_LINEAR)
+    warp = cv.warpPerspective(img, H, (w,h), flags=cv.INTER_LINEAR)
 
-    cv.imshow('warp', warp)
-    cv.waitKey()
-    cv.destroyAllWindows()
-
-    return warp
+    return warp, H, src
 
 def re_size(img):
     #resize image
@@ -260,8 +236,28 @@ def re_size(img):
     # print(r,c)
     return img
 
-def hands():
-    cap = cv2.VideoCapture(0)
+def mouseValue(event,x,y,flags,param):
+    # if event == cv.EVENT_LBUTTONDOWN: #checks mouse left button down condition
+        value = output[y,x]
+        s = sector.index(value)
+        print("sector: ", s)
+        print("value: ",  value)
+        print("Coordinates of pixel: X: ",x,"Y: ",y)
+
+def mouse_sensing():
+    cv.namedWindow('mouseValue')
+    cv.setMouseCallback('mouseValue',mouseValue)
+    
+    #Do until esc pressed
+    while(1):
+        cv.imshow('mouseValue',output)
+        if cv.waitKey(20) & 0xFF == 27:
+            break
+    #if esc pressed, finish.
+    cv.destroyAllWindows()
+
+def hands(H, output, src, sector):
+    cap = cv.VideoCapture(0)
 
     mp_Hands = mp.solutions.hands
     hands = mp_Hands.Hands()
@@ -271,14 +267,30 @@ def hands():
     # finger_Coord = [(8, 6), (12, 10), (16, 14), (20, 18)]
     # thumb_Coord = (4,2)
 
-
+    num_fing = 1
     prev = time.time()
     while True:
         LhandList = []
         RhandList = []
-        
+        Ltext = ["thumb left", "index left", "middle left", "ring left", "pinky left"]
+        Rtext = ["thumb right", "index right", "middle right", "ring right", "pinky right"]
+
+        out = output.copy()
         success, image = cap.read()
-        RGB_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        RGB_image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+
+        # print(src)
+        rect = cv.minAreaRect(src)
+        box = cv.boxPoints(rect)
+        box = np.int0(box)
+        image = cv.drawContours(image,[box],0,(0,0,255),2)
+
+        old_pts = np.float32([[[23, 340]]])
+        new_pts = cv.perspectiveTransform(old_pts, H)
+        cx, cy = round(new_pts[0][0][0]), round(new_pts[0][0][1])
+        # print(cx,cy)
+        cv.circle(out, (cx, cy), 5, (100, 255, 0), cv.FILLED)
+
         results = hands.process(RGB_image)
         multiLandMarks = results.multi_hand_landmarks
         if multiLandMarks:
@@ -287,63 +299,94 @@ def hands():
                 handLabel = results.multi_handedness[handIndex].classification[0].label
                 # mpDraw.draw_landmarks(image, handLms, mp_Hands.HAND_CONNECTIONS, mp_drawing_styles.get_default_hand_landmarks_style(), mp_drawing_styles.get_default_hand_connections_style())
                 for idx, lm in enumerate(handLms.landmark):
-                    if idx % 4 == 0 and idx != 0:
+                    # if idx % 4 == 0 and idx != 0: #finger = 5
+                    if idx == 4: #finger = 1
                         h, w, c = image.shape
                         cx, cy = int(lm.x * w), int(lm.y * h)
-                        cv2.circle(image, (cx, cy), 5, (255, 255, 0), cv2.FILLED)
+                        cv.circle(image, (cx, cy), 5, (255, 255, 0), cv.FILLED)
+
+
+                        old_pts = np.float32([[[cx, cy]]])
+                        new_pts = cv.perspectiveTransform(old_pts, H)
+                        cx, cy = round(new_pts[0][0][0]), round(new_pts[0][0][1])
+                        cv.circle(out, (cx, cy), 5, (255, 255, 0), cv.FILLED)
                         if handLabel == "Left":
                             RhandList.append((cx, cy))
                         elif handLabel == "Right":
                             LhandList.append((cx, cy))
+
             # for point in handList:
-        cv2.imshow("viewing fingers", image)
+        cv.imshow("viewing fingers", image)
+        cv.imshow('mouseValue', out)
 
         cur = time.time()
         if cur-prev >= 1:
+        # if True:
             prev = cur
             if len(LhandList) > 0:
-                print("thumb left: ", LhandList[0])
-                print("index left: ", LhandList[1])
-                print("middle left: ", LhandList[2])
-                print("ring left: ", LhandList[3])
-                print("pinky left: ", LhandList[4])
+                # print("thumb left: ", LhandList[0])
+                # print("index left: ", LhandList[1])
+                # print("middle left: ", LhandList[2])
+                # print("ring left: ", LhandList[3])
+                # print("pinky left: ", LhandList[4])
+                for i in range(num_fing):
+                    px = LhandList[i][0]
+                    py = LhandList[i][1]
+                    if px >= output.shape[1] or py >= output.shape[0]:
+                        print("error out of bounds")
+                    else:
+                        value = output[py,px]
+                        d = sector.index(value)
+                        print("%s: (%d,%d), value: %d, sector: %d" % (Ltext[i], px, py, value, d))
                 print("-------------------------")
             if len(RhandList) > 0:
-                print("thumb right: ", RhandList[0])
-                print("index right: ", RhandList[1])
-                print("middle right: ", RhandList[2])
-                print("ring right: ", RhandList[3])
-                print("pinky right: ", RhandList[4])
+                # print("thumb right: ", RhandList[0])
+                # print("index right: ", RhandList[1])
+                # print("middle right: ", RhandList[2])
+                # print("ring right: ", RhandList[3])
+                # print("pinky right: ", RhandList[4])
+                for i in range(num_fing):
+                    px = RhandList[i][0]
+                    py = RhandList[i][1]
+                    if px >= output.shape[1] or py >= output.shape[0]:
+                        print("error out of bounds")
+                    else:
+                        value = output[py,px]
+                        d = sector.index(value)
+                        print("%s: (%d,%d), value: %d, sector: %d" % (Rtext[i], px, py, value, d))
                 print("-------------------------")
             if len(LhandList) > 0 or len(RhandList) > 0:
                 print(" ")
                 print("**************************")
                 print(" ")
 
-        key = cv2.waitKey(1)
+        key = cv.waitKey(1)
         if key == 27:  # click esc key to exit
             break
     cap.release()
-    cv2.destroyAllWindows()
+    cv.destroyAllWindows()
 
 # for n in range(1, 11):
     
-n = 13
+n = 11
 
 #readin image
 img = cv.imread('test_images/test%d.jpg' % n)
-# img = cv.imread('test_images/test.png')
-# img = cv.imread('capture%d.png' % n)
+# img = cv.imread('test_images/test%d.png' % n)
 
 img = re_size(img)
-cv.imshow('img', img)
-cv.waitKey()
+# cv.imshow('img', img)
+# cv.waitKey()
 
 # warping image
-warp = warping(img)
+warp, H, src = warping(img)
+# cv.imshow('warp', warp)
+# cv.waitKey()
+# cv.destroyAllWindows()
+
 # warp = img.copy()
 
-warp = re_size(warp)
+# warp = re_size(warp)
 
 #crop the image 
 crop = 20
@@ -354,23 +397,23 @@ warp = warp[crop:-crop, crop:-crop]
 bor = 20
 col = 150
 warp = cv.copyMakeBorder(warp,bor,bor,bor,bor,cv.BORDER_CONSTANT,value=[col,col,col])
-cv.imshow('border', warp)
-cv.waitKey()
-cv.destroyAllWindows()
+# cv.imshow('border', warp)
+# cv.waitKey()
+# cv.destroyAllWindows()
 
 # threshold
 thresh, gray = filter(warp)
-cv.imshow('thresh', thresh)
-cv.waitKey()
-cv.destroyAllWindows()
+# cv.imshow('thresh', thresh)
+# cv.waitKey()
+# cv.destroyAllWindows()
 
 #segmentation
 output, totalSections, sector = segment(thresh, gray, warp)
-cv.waitKey()
-cv.destroyAllWindows()
+# cv.waitKey()
+# cv.destroyAllWindows()
 
 # #Output sector with mouse cursor
 # mouse_sensing()
 
 #detect hands
-hands()
+hands(H, output, src, sector)
