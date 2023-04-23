@@ -20,6 +20,8 @@ import numpy as np
 import math
 import mediapipe as mp
 import time
+import sys
+import os
 
 
 
@@ -127,6 +129,34 @@ def segment(thresh, gray, img):
 
     return output, totalSections, sector
 
+
+class choose_points:
+    def __init__(self, img):
+        self.counter = 0
+        self.src = [[]]
+        self.img = img
+        cv.namedWindow('Choose Points')
+        cv.setMouseCallback('Choose Points', self.get_mouse_pts)
+        print("Please choose 4 corner points in order from top to bottom and left to right:\n")
+
+        #Do until esc pressed
+        while(1):
+            cv.imshow('Choose Points', img)
+            if cv.waitKey(20) & 0xFF == 27 or self.counter == 4:
+                print('Get Corner Points Completed.')
+                break
+        #if esc pressed, finish.
+        cv.destroyAllWindows()
+
+    def get_mouse_pts(self,event,x,y,flags,param):
+        if event == cv.EVENT_LBUTTONDOWN: #checks mouse left button down condition
+            print("Coordinates of pixel: X: ",x,"Y: ",y)
+            self.img = cv.circle(self.img, (x,y), radius=5, color=(255, 0, 0), thickness=-1)
+            self.src += [[x,y]]
+            self.counter += 1
+
+        return 0
+
 def get_src_pts(corners, h, w):
 
     # get dist from each edge to each of the 4 points so you know how to order them
@@ -155,7 +185,7 @@ def get_dst_pts(w, h):
 
 def warping(img):
     boundaries = [
-        ([60, 60, 150], [120, 120, 205]), #red
+        ([60, 60, 140], [120, 120, 205]), #red
         # ([0, 0, 45], [60, 60, 230]), #red
         ]
     for (lower, upper) in boundaries:
@@ -165,7 +195,16 @@ def warping(img):
         # find the colors within the specified boundaries and apply
         # the mask
         mask = cv.inRange(img, lower, upper)
+        # cv.imshow("images", mask)
+        # cv.waitKey()
+
         output = cv.bitwise_and(img, img, mask = mask)
+
+        # directory = r'C:\Users\ltpoi\Downloads\capstone_code\AnywheRePiano\test_images'
+        # os.chdir(directory)
+        # filename = 'savedImage.jpg'
+        # cv.imwrite(filename, output)
+
         # show the images
         # cv.imshow("images", output)
         # cv.waitKey()
@@ -177,6 +216,8 @@ def warping(img):
     kernel = np.ones((3, 3), np.float32) / 9
     blur = cv.filter2D(gray, -1, kernel)
     # cv.imshow('blur', blur)
+
+    
     thresh = cv.threshold(blur, 250, 255, cv.THRESH_OTSU)[1]
     # thresh = cv.bitwise_not(thresh)
     # cv.imshow('thresh1', thresh)
@@ -187,22 +228,42 @@ def warping(img):
 
 
     src = [[]]
-    for cnt in contours:
-        M = cv.moments(cnt)
-        cx = int(M['m10']/M['m00'])
-        cy = int(M['m01']/M['m00'])
-        # print(cx, cy)
-        src += [[cx,cy]]
-        img = cv.circle(img, (cx,cy), radius=0, color=(255, 0, 0), thickness=-1)
+    if (len(contours) != 4):
+        print("# of Contours: ", len(contours))
+        if len(contours) < 4:
+            print("WARNING: Please re-adjust camera lighting to be brighter")
+            ans = input("Do you wish to insert points manually? (Y/N)\t")
+            if (ans == "N"): 
+                sys.exit("Exiting...") 
+            if (ans == "Y"): 
+                choosing = choose_points(img)
+                src = choosing.src
+
+        if len(contours) > 4:
+            print("WARNING: Please re-adjust camera lighting to be darker")
+            ans = input("Do you wish to insert points manually? (Y/N)\t")
+            if (ans == "N"): 
+                sys.exit("Exiting...")  
+            if (ans == "Y"): 
+                choosing = choose_points(img)
+                src = choosing.src
+    else:
+        for cnt in contours:
+            M = cv.moments(cnt)
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            # print(cx, cy)
+            src += [[cx,cy]]
+            # img = cv.circle(img, (cx,cy), radius=0, color=(255, 0, 0), thickness=-1)
+
+    
+        for cnt in contours:
+            cv.drawContours(img, cnt, -1, (0, 255, 0), 3) 
+        # cv.imshow('contours', img)
+        # cv.waitKey()
 
     src.pop(0)
     src = np.float32(src)
-   
-    for cnt in contours:
-        cv.drawContours(img, cnt, -1, (0, 255, 0), 3) 
-    # cv.imshow('contours', img)
-    # cv.waitKey()
-
 
     # Putting corner points into numpy array
     src = get_src_pts(src, img.shape[0], img.shape[1])
@@ -267,7 +328,7 @@ def hands(H, output, src, sector):
     # finger_Coord = [(8, 6), (12, 10), (16, 14), (20, 18)]
     # thumb_Coord = (4,2)
 
-    num_fing = 1
+    num_fing = 5
     prev = time.time()
     while True:
         LhandList = []
@@ -299,8 +360,8 @@ def hands(H, output, src, sector):
                 handLabel = results.multi_handedness[handIndex].classification[0].label
                 # mpDraw.draw_landmarks(image, handLms, mp_Hands.HAND_CONNECTIONS, mp_drawing_styles.get_default_hand_landmarks_style(), mp_drawing_styles.get_default_hand_connections_style())
                 for idx, lm in enumerate(handLms.landmark):
-                    # if idx % 4 == 0 and idx != 0: #finger = 5
-                    if idx == 4: #finger = 1
+                    if idx % 4 == 0 and idx != 0: #finger = 5
+                    # if idx == 4: #finger = 1
                         h, w, c = image.shape
                         cx, cy = int(lm.x * w), int(lm.y * h)
                         cv.circle(image, (cx, cy), 5, (255, 255, 0), cv.FILLED)
@@ -380,9 +441,9 @@ img = re_size(img)
 
 # warping image
 warp, H, src = warping(img)
-# cv.imshow('warp', warp)
-# cv.waitKey()
-# cv.destroyAllWindows()
+cv.imshow('warp', warp)
+cv.waitKey()
+cv.destroyAllWindows()
 
 # warp = img.copy()
 
