@@ -183,7 +183,7 @@ def get_src_pts(corners, h, w):
 def get_dst_pts(w, h):
     return np.float32([(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]), h, w
 
-def warping(img):
+def warping(img, valid_contours):
     boundaries = [
         ([60, 60, 140], [120, 120, 205]), #red
         # ([0, 0, 45], [60, 60, 230]), #red
@@ -234,20 +234,26 @@ def warping(img):
             print("WARNING: Please re-adjust camera lighting to be brighter")
             ans = input("Do you wish to insert points manually? (Y/N)\t")
             if (ans == "N"): 
-                sys.exit("Exiting...") 
+                print("Returning to choose another image") 
+                return img,None,src,valid_contours
             if (ans == "Y"): 
                 choosing = choose_points(img)
                 src = choosing.src
+                valid_contours = True
 
         if len(contours) > 4:
             print("WARNING: Please re-adjust camera lighting to be darker")
             ans = input("Do you wish to insert points manually? (Y/N)\t")
             if (ans == "N"): 
-                sys.exit("Exiting...")  
+                print("Returning to choose another image") 
+                return img,None,src,valid_contours
             if (ans == "Y"): 
                 choosing = choose_points(img)
                 src = choosing.src
+                valid_contours = True
+
     else:
+        valid_contours = True
         for cnt in contours:
             M = cv.moments(cnt)
             cx = int(M['m10']/M['m00'])
@@ -259,8 +265,8 @@ def warping(img):
     
         for cnt in contours:
             cv.drawContours(img, cnt, -1, (0, 255, 0), 3) 
-        # cv.imshow('contours', img)
-        # cv.waitKey()
+        cv.imshow('contours', img)
+        cv.waitKey()
 
     src.pop(0)
     src = np.float32(src)
@@ -281,7 +287,7 @@ def warping(img):
 
     warp = cv.warpPerspective(img, H, (w,h), flags=cv.INTER_LINEAR)
 
-    return warp, H, src
+    return warp, H, src, valid_contours
 
 def re_size(img):
     #resize image
@@ -318,7 +324,7 @@ def mouse_sensing():
     cv.destroyAllWindows()
 
 def hands(H, output, src, sector):
-    cap = cv.VideoCapture(0)
+    cap = cv.VideoCapture(1)
 
     mp_Hands = mp.solutions.hands
     hands = mp_Hands.Hands()
@@ -393,7 +399,8 @@ def hands(H, output, src, sector):
                 for i in range(num_fing):
                     px = LhandList[i][0]
                     py = LhandList[i][1]
-                    if px >= output.shape[1] or py >= output.shape[0]:
+                    print(px,py)
+                    if px >= output.shape[1] or py >= output.shape[0] or px < 0 or py < 0:
                         print("error out of bounds")
                     else:
                         value = output[py,px]
@@ -409,7 +416,8 @@ def hands(H, output, src, sector):
                 for i in range(num_fing):
                     px = RhandList[i][0]
                     py = RhandList[i][1]
-                    if px >= output.shape[1] or py >= output.shape[0]:
+                    print(px,py)
+                    if px >= output.shape[1] or py >= output.shape[0] or px < 0 or py < 0:
                         print("error out of bounds")
                     else:
                         value = output[py,px]
@@ -427,24 +435,55 @@ def hands(H, output, src, sector):
     cap.release()
     cv.destroyAllWindows()
 
-# for n in range(1, 11):
+def start_image():
+    cap = cv.VideoCapture(1)
+
+    # if (cap.isOpened()): 
+    while(cap.isOpened()):
+        ret, img = cap.read()
+        if ret == True:
+        # Display the resulting frame
+            cv.imshow('Frame', img)
+            
+        # # Press Q on keyboard to exit
+        #     if cv.waitKey(25) & 0xFF == ord('q'):
+        #         break
+
+        # Press enter on keyboard to exit
+            if cv.waitKey(32) & 0xFF == ord(' '):
+                break
     
-n = 11
+    # Break the loop
+        else:
+            break
+
+    cap.release()
+    cv.destroyAllWindows()
+
+    return img
+    
+# n = 11
 
 #readin image
-img = cv.imread('test_images/test%d.jpg' % n)
+# img = cv.imread('test_images/test%d.jpg' % n)
 # img = cv.imread('test_images/test%d.png' % n)
 
-img = re_size(img)
-# cv.imshow('img', img)
-# cv.waitKey()
+valid_contours = False
 
-# warping image
-warp, H, src = warping(img)
+while(not valid_contours):
+    img = start_image()
+
+    # img = re_size(img)
+    cv.imshow('Chosen Image', img)
+    cv.waitKey()
+    cv.destroyAllWindows()
+
+    # warping image
+    warp, H, src, valid_contours = warping(img, valid_contours)
+
 cv.imshow('warp', warp)
 cv.waitKey()
 cv.destroyAllWindows()
-
 # warp = img.copy()
 
 # warp = re_size(warp)
@@ -464,14 +503,15 @@ warp = cv.copyMakeBorder(warp,bor,bor,bor,bor,cv.BORDER_CONSTANT,value=[col,col,
 
 # threshold
 thresh, gray = filter(warp)
-# cv.imshow('thresh', thresh)
-# cv.waitKey()
-# cv.destroyAllWindows()
+cv.imshow('thresh', thresh)
+cv.waitKey()
+cv.destroyAllWindows()
 
 #segmentation
 output, totalSections, sector = segment(thresh, gray, warp)
-# cv.waitKey()
-# cv.destroyAllWindows()
+cv.imshow('output', output)
+cv.waitKey()
+cv.destroyAllWindows()
 
 # #Output sector with mouse cursor
 # mouse_sensing()
