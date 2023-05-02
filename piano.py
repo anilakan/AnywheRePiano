@@ -17,10 +17,21 @@ import pygame
 from pygame import mixer
 
 # wave files used from PythonPiano script
+Config.set('graphics', 'resizable', True)
 
-Config.set('graphics', 'width', '1000')
-Config.set('graphics', 'height', '700')
+sector_mapping = {
+    "1": "C1",
+    "2": "Db1",
+    "3": "D1",
+    "4": "Eb1",
+    # fill in etc.
+}
 
+flat_and_sharp_mapping = {
+    "Db": "C#",
+    "Eb": "D#",
+    # mappings to convert from flat to sharp 
+}
 class PianoKey(FloatLayout):
     def __init__(self, note, octave, white=True, **kwargs):
         super().__init__(**kwargs)
@@ -65,10 +76,11 @@ class PianoKey(FloatLayout):
             touch.grab(self)
 
             print(self.note)
-            if self.rect_color != self.default_color:
-                self.rect_color = self.default_color
-            else:
-                self.rect_color.rgb = (random(), random(), random(), 1)
+            # if self.rect_color != self.default_color:
+            #     self.rect_color = self.default_color
+            # else:
+            self.rect_color.rgb = (random(), random(), random(), 1)
+            # probably messed up a little bit of the logic here             
 
             # can set a volume before playing (float between 0 to 1.0, using sound.set_volume())
             self.sound.set_volume(1.0)
@@ -146,8 +158,8 @@ class PianoApp(App):
     def build(self):
         pygame.init()
         mixer.set_num_channels(50)
-        Window.clearcolor = rgba("#570861")
-
+        #Window.clearcolor = rgba("#570861")
+        Window.size = (1000, 700)
         return PianoBoard(size_hint=(1, 0.5))
 
 if __name__ == "__main__":
