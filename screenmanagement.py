@@ -2,23 +2,29 @@ from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.button import Button
+from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen, ScreenManager, FadeTransition
 from kivy.uix.widget import Widget
+from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.config import Config
+from kivy.core.window import Window
+from random import random
 
-
-Config.set('graphics', 'width', '200')
-Config.set('graphics', 'height', '200')
+from kivy.utils import rgba
+import pygame
+from pygame import mixer
 
 
 def callback1(instance):
     print("hey there homie")
+    App.get_running_app().root.current = "second"
 
 def callback2(instance):
     print("bye there bomie")
-    print(instance.parent.parent.parent)
-    print(App.get_running_app().root)
+    #print(instance.parent.parent.parent)
+    #print(App.get_running_app().root)
     App.get_running_app().root.current = "first"
 
 class PianoKey(Widget):
@@ -46,6 +52,8 @@ class Screen2(Screen):
 
 class PianoApp(App):
     def build(self):
+        Window.size = (1000, 700)
+
         sm = ScreenManager(transition=FadeTransition())
         sm.add_widget(Screen2(name="second"))
         sm.add_widget(Screen1(name="first"))

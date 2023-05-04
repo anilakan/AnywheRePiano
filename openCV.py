@@ -358,7 +358,7 @@ def hands(H, output, src, sector):
                 handLabel = results.multi_handedness[handIndex].classification[0].label
                 # mpDraw.draw_landmarks(image, handLms, mp_Hands.HAND_CONNECTIONS, mp_drawing_styles.get_default_hand_landmarks_style(), mp_drawing_styles.get_default_hand_connections_style())
                 for idx, lm in enumerate(handLms.landmark):
-                    #if idx % 4 == 0 and idx != 0: #finger = 5
+                    if idx % 4 == 0 and idx != 0: #finger = 5
                         # only save coordinates that are for the fingers here, change this conditional
                     # if idx == 4: #finger = 1
                         h, w, c = image.shape
@@ -476,7 +476,6 @@ if __name__ == "__main__":
     #     # warping image
     #     warp, H, src, valid_contours = warping(img, valid_contours)
 
-    img = cv.imread('nish_img.jpg')
 # img = cv.imread('test_images/test%d.png' % n)
 
     #img = re_size(img)
