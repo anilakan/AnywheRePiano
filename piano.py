@@ -24,6 +24,24 @@ flat_and_sharp_mapping = {
     "Eb": "D#",
     # mappings to convert from flat to sharp 
 }
+
+color_notes = {
+
+    "C": "#ffb480",
+    "D": "#f8f38d",
+    "E": "#42dba4",
+    "F": "#08cad1", 
+    "G": "#59adfb", 
+    "A": "#9d94ff",
+    "B": "#c780e8",
+    "Db": "#ff6961",
+    "Eb": "#ff6961",
+    "Gb": "#ff6961",
+    "Ab": "#ff6961",
+    "Bb": "#ff6961",
+
+}
+
 class FakeSound():
     def __init__(self):
         pass
@@ -34,28 +52,35 @@ class FakeSound():
     def set_volume(self, arg1):
         pass
 
+
 class FakeKey(FloatLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.note = None
         self.sound = FakeSound()
 
+    def run_finger(self):
+        pass
+
+
 class PianoKey(FloatLayout):
     def __init__(self, note, octave, white=True, **kwargs):
         super().__init__(**kwargs)
         self.white = white
         self.note = note
+        self.other_color = rgba(color_notes[self.note])
+        self.on_color = False
         with self.canvas:
             if (white):
                 Color(rgba=(0, 0, 0, 1))
                 self.rect = RoundedRectangle(radius=[10, 10, 10, 10],size=(1, 1), pos=(0,0))
-                self.default_color = Color(1, 1, 1, 1)
+                self.default_color = rgba("#FFFFFF")
                 self.rect_color = Color(1, 1, 1, 1)
                 self.border = RoundedRectangle(radius=[10, 10, 10, 10], size=(1, 1), pos=(0,0))
             else:
                 Color(rgba=(0, 0, 0, 1))
                 self.rect = RoundedRectangle(radius=[10, 10, 10, 10],size=(1, 1), pos=(0,0))
-                self.default_color = Color(0, 0, 0, 1)
+                self.default_color = rgba("#000000")
                 self.rect_color = Color(0, 0, 0, 1)
                 self.border = RoundedRectangle(radius=[10, 10, 10, 10], size=(1, 1), pos=(0, 0))
 
@@ -84,17 +109,28 @@ class PianoKey(FloatLayout):
         if self.collide_point(*touch.pos):
             touch.grab(self)
 
-            print(self.note)
             # if self.rect_color != self.default_color:
             #     self.rect_color = self.default_color
-            # else:
-            self.rect_color.rgb = (random(), random(), random(), random())
-            # probably messed up a little bit of the logic here             
-
-            # can set a volume before playing (float between 0 to 1.0, using sound.set_volume())
-            self.sound.set_volume(1.0)
-            self.sound.play(0, 1000)
+            self.run_finger()
             return True
+        
+    def run_finger(self):
+                    # else:
+        if self.on_color:
+            self.rect_color.rgb = self.default_color
+            self.rect_color.a = 1.0
+            self.on_color = False
+
+        else:
+            self.rect_color.rgb = self.other_color
+            self.rect_color.a = random()
+            self.on_color = True
+        # probably messed up a little bit of the logic here             
+
+        # can set a volume before playing (float between 0 to 1.0, using sound.set_volume())
+        self.sound.set_volume(1.0)
+        self.sound.play(0, 1000)
+        
 
 class PianoBoard(RelativeLayout):
     def __init__(self, **kwargs):

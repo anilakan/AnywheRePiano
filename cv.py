@@ -60,7 +60,7 @@ class CVLayout(FloatLayout):
 
     def start_image(self, *args):
         self.capture = cv.VideoCapture(0) # never actually stops the stream 
-        self.load_event = Clock.schedule_interval(self.load_video, 1/30)
+        self.load_event = Clock.schedule_interval(self.load_video, 1/60)
   
     def hands_func(self):
 
