@@ -4,41 +4,64 @@ from bleak import BleakScanner, BleakClient
 # import keyboard
 
 unique_uuid = "00002a56-0000-1000-8000-00805f9b34fb"
+import signal
+import sys
+
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C!')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 async def ble(loop):
     devices = await BleakScanner.discover()
     # remember to disconnect from BlueSee
-    
+    found_ble = False
+    # for d in devices: 
+    #     print(d.details)
     for d in devices: 
         if d.name == "NishBLE!":
             print(d.address)
             print(d.details)
+            found_ble = True
             break
+    if not found_ble:
+        print("oh no")
+        exit()
     address = d.address
+
+    # make a graceful excit if you can't find nish ble
     # loop.stop()
     # while(True):
-    async with BleakClient(address) as client:
+    async with BleakClient(address, loop=loop) as client:
         await client.connect()
         svcs = client.services
-        while(client.connect()):
+        while(client.is_connected):
             for service in svcs:
                 # print(service)
                 # print(type(service)) # i feel like there's a better way to iterate but fuck it 
                 for char in service.characteristics:
-                    print(char)
                     # print(char.uuid)
                     value = await client.read_gatt_char(char.uuid)
-                    print(value)
+
+                    print(int.from_bytes(value,byteorder='big'))
             # if(keyboard.read_key() == "q"):
             #     client.disconnect()
             #     break
-    loop.stop()
+        # svcs = client.services
+        # for service in svcs: 
+        #     for char in service.characteristics:
+        #         value = await client.read_gatt_char(char.uuid)
+        #         print(int.from_bytes(value, byteorder='big'))
+
+    #loop.stop()
 
 
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 asyncio.ensure_future(ble(loop))
 loop.run_forever()
+
 
 # async def main():
 
