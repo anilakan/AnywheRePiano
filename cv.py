@@ -57,6 +57,10 @@ class CVLayout(FloatLayout):
     def callback_test(self, event):
         cv.imwrite("clicked_image.jpg", self.image_frame)
         self.choose_yet = True
+        self.label_1 = Label(text="Pick the TOP LEFT point", size_hint = (0.5, 0.05), pos_hint = {"center_x": 0.5, "y": 0.9})
+        self.add_widget(self.label_1)
+
+            
 
     def start_image(self, *args):
         self.capture = cv.VideoCapture(0) # never actually stops the stream 
@@ -116,7 +120,6 @@ class CVLayout(FloatLayout):
                 py = self.LhandList[i][1]
 
                 if px >= self.output.shape[1] or py >= self.output.shape[0] or px < 0 or py < 0:
-                    #print("error out of bounds")
                     self.Lsectors.append(0)
                 else: 
                     value = self.output[py, px]
@@ -184,8 +187,24 @@ class CVLayout(FloatLayout):
             self.canvas.add(Color(rgba=(0, 0, 1, 1)))
             self.canvas.add(Ellipse(pos = (touch.x-d/2, touch.y-d/2), size = (d, d)))
             self.counter += 1
-            if self.counter == 4: 
+
+            if self.counter == 1:
+                self.remove_widget(self.label_1)
+                self.label_2 = Label(text="Pick the TOP RIGHT point", size_hint = (0.5, 0.05), pos_hint = {"center_x": 0.5, "y": 0.9})
+                self.add_widget(self.label_2)
+            elif self.counter == 2:
+                self.remove_widget(self.label_2)
+                self.label_3 = Label(text="Pick the BOTTOM LEFT point", size_hint = (0.5, 0.05), pos_hint = {"center_x": 0.5, "y": 0.9})
+                self.add_widget(self.label_3)
+            elif self.counter == 3:
+                self.remove_widget(self.label_3)
+                self.label_4 = Label(text="Pick the BOTTOM RIGHT point", size_hint = (0.5, 0.05), pos_hint = {"center_x": 0.5, "y": 0.9})
+                self.add_widget(self.label_4)
+            
+
+            elif self.counter == 4: 
             # start the warp now that there are 4 points to work with 
+                #self.canvas.clear()
                 warp, H, src, valid_contours = newCV.warping(cv.imread('clicked_image.jpg'), False, self.src)
                 print(warp, H, src, valid_contours)
                 self.warp = warp
@@ -211,11 +230,14 @@ class CVLayout(FloatLayout):
                 cv.imwrite("output.jpg", self.output)
                 self.choosing = False
                 self.image.size_hint = (0.5, 0.5)
+                self.image.pos_hint = {"center_x": 0.5, "y": 0.5}
 
                 output_img = cv.imread("output.jpg")
                 self.output_img = output_img
-                self.new_image = Image(size_hint = (0.5, 1), pos_hint = {"x": 0.25, "y": 0.25})
+                self.new_image = Image(size_hint = (0.5, 0.5), pos_hint = {"center_x": 0.5, "y": 0.1})
                 self.add_widget(self.new_image)
+
+                self.remove_widget(self.button)
 
         print(touch.x-40, 1400-touch.y-165)
 
@@ -233,26 +255,35 @@ class CVLayout(FloatLayout):
                 pass
         elif self.choosing: 
             self.image.source = "clicked_image.jpg"
+
         if not self.choosing:
+            self.remove_widget(self.label_4)
             self.hands_func() #idk if you like wanna restart this but sure 
             # add a check screen here with the hands if you want!
-            bm = Button(text="Go to piano")
-            bm.bind(on_press=self.switch_screen_callback)
-            self.add_widget(bm)
+            # bm = Button(text="Go to piano")
+            #self.add_widget(self.another_button)
+
+            another_button = Button(text = "Proceed to interface",size_hint = (0.25, 0.05), pos_hint={"center_x": 0.5,"y": 0.05})
+            another_button.bind(on_press=self.switch_screen_callback)
+            self.add_widget(another_button)
+
+            # bm.bind(on_press=self.switch_screen_callback)
+            # self.add_widget(bm)
             # stop this load video event after changing
 
         
-            # buffer = cv.flip(frame, 0).tostring() # chnage to tobytes()
-            # texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
-            # texture.blit_buffer(buffer, colorfmt='bgr', bufferfmt='ubyte')
-            # self.image.texture = texture
+            buffer = cv.flip(frame, 0).tostring() # chnage to tobytes()
+            texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
+            texture.blit_buffer(buffer, colorfmt='bgr', bufferfmt='ubyte')
+            self.image.texture = texture
 
-            # buffer2 = cv.flip(self.output_img, 0).tostring()
-            # texture2 = Texture.create(size=(self.output_img.shape[1], self.output_img.shape[0]))
-            # texture2.blit_buffer(buffer2,  bufferfmt='ubyte')
-            # self.new_image.texture = texture2
+            buffer2 = cv.flip(self.output_img, 0).tostring()
+            texture2 = Texture.create(size=(self.output_img.shape[1], self.output_img.shape[0]))
+            texture2.blit_buffer(buffer2,  bufferfmt='ubyte')
+            self.new_image.texture = texture2
      
     def switch_screen_callback(self, instance):
+        print("hey")
         App.get_running_app().root.current = "piano"
 
 class CVApp(App):

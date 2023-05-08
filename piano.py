@@ -11,10 +11,12 @@ from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.config import Config
 from kivy.core.window import Window
 from random import random
+from enum import Enum
 
 from kivy.utils import rgba
 import pygame
 from pygame import mixer
+import time
 
 # wave files used from PythonPiano script
 Config.set('graphics', 'resizable', True)
@@ -53,23 +55,40 @@ class FakeSound():
         pass
 
 
+# lol you probably should have just inhereited lmfao 
 class FakeKey(FloatLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.note = None
         self.sound = FakeSound()
 
-    def run_finger(self):
+    def set_volume(self, arg1):
         pass
 
+    def run_finger(self):
+        pass
+    def run_key(self, i):
+        pass
+
+    def turn_off_color(self):
+        pass
+
+class State(Enum):
+    OFF = 0
+    ON = 1
 
 class PianoKey(FloatLayout):
     def __init__(self, note, octave, white=True, **kwargs):
         super().__init__(**kwargs)
+        print('new')
         self.white = white
         self.note = note
         self.other_color = rgba(color_notes[self.note])
         self.on_color = False
+        self.state = State.OFF
+        self.volume = 0
+        self.start = 0
+
         with self.canvas:
             if (white):
                 Color(rgba=(0, 0, 0, 1))
@@ -111,25 +130,55 @@ class PianoKey(FloatLayout):
 
             # if self.rect_color != self.default_color:
             #     self.rect_color = self.default_color
-            self.run_finger()
+            #self.run_finger()
             return True
         
-    def run_finger(self):
-                    # else:
-        if self.on_color:
-            self.rect_color.rgb = self.default_color
-            self.rect_color.a = 1.0
-            self.on_color = False
 
-        else:
-            self.rect_color.rgb = self.other_color
-            self.rect_color.a = random()
-            self.on_color = True
+    def run_key(self, i):
+        if self.state == State.OFF and i > 0:
+            #print('hey')
+            # it was in an off state, now it needs to actually play the sound:
+            self.state = State.ON
+            self.run_finger(i)
+
+        elif self.state == State.ON and i == 0:
+            self.state = State.OFF
+            self.turn_off_color() # don't just stop the note
+
+       
+        
+    def set_volume(self, i):
+   
+        if i==0:
+            self.sound.set_volume(0)
+            self.volume = 1.0
+        elif i==1:
+            self.sound.set_volume(0.3)
+            self.volume = 1.0
+        elif i==2:
+            self.sound.set_volume(0.5)
+            self.volume = 0.5
+
+        elif i==3:
+            self.sound.set_volume(1.0)
+            self.volume = 0.3
+
+
+    
+    def run_finger(self, i):
+                    # else:
+        self.set_volume(i)
         # probably messed up a little bit of the logic here             
 
         # can set a volume before playing (float between 0 to 1.0, using sound.set_volume())
-        self.sound.set_volume(1.0)
         self.sound.play(0, 1000)
+        self.rect_color.rgb = self.other_color
+        self.rect_color.a = self.volume
+
+        
+    def turn_off_color(self):
+        self.rect_color.rgb = self.default_color
+        self.rect_color.a = 1.0
         
 
 class PianoBoard(RelativeLayout):
@@ -314,7 +363,7 @@ class PianoBoard(RelativeLayout):
 class Board(FloatLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.add_widget(PianoBoard(size_hint = (1, 0.5)))
+        #self.add_widget(PianoBoard(size_hint = (1, 0.5)))
         new_layout = RelativeLayout(size_hint = (1, 0.5), pos_hint={"y": 0.5})
         new_layout.add_widget(Button(text="Recalibrate", size_hint = (0.2, 0.3), pos_hint = {"center_x": 0.25, "y": 0.3}))
         new_layout.add_widget(Button(text="Metronome", size_hint = (0.2, 0.3), pos_hint = {"center_x": 0.5, "y": 0.3}))
